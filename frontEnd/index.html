@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sql转实体类</title>
+    <script src="./js/vue.min.js"></script>
+    <script src="./js/qs.min.js"></script>
+    <script src="./js/axios.min.js"></script>
+    <link rel="stylesheet" href="./lib/elementui/index.css">
+    <script src="./lib/elementui/index.js"></script>
+</head>
+
+<body>
+    <div id="root">
+        <el-row>
+            <el-input placeholder="请输入连接字符串" v-model="connString">
+                <template slot="prepend">连接字符串</template>
+                <el-button slot="append" icon="el-icon-magic-stick" @click="connection">连接</el-button>
+            </el-input>
+        </el-row>
+        <el-row :gutter="20" style="margin-top:20px;">
+            <el-col :span="8">
+                <el-card class="box-card" body-style="height:120px;overflow-y: auto;">
+                    <div slot="header" class="clearfix">
+                        <span>有权使用的数据库</span>
+                        <el-button style="float: right; padding: 3px 0" type="text" @click="refresh1">刷新</el-button>
+                    </div>
+                    <div v-if="dataBases.length>0" class="text item">
+                        <el-radio-group v-model="dataBaseSelected" @change="change1">
+                            <el-radio style="display: block;" v-for="(item,index) in dataBases" :key="index" :label="item">{{item}}</el-radio>
+                        </el-radio-group>
+                    </div>
+                </el-card>
+                <el-card class="box-card" style="margin-top: 10px;" body-style="height:320px;overflow-y: auto;">
+                    <div slot="header" class="clearfix">
+                        <span>选中数据库下的表</span>
+                        <el-button style="float: right; padding: 3px 0" type="text" @click="refresh2">刷新</el-button>
+                    </div>
+                    <div class="text item">
+                        <el-radio-group v-model="tableSelected" @change="change2">
+                            <el-radio style="display: block;" v-for="(item,index) in tables" :key="index" :label="item">{{item}}</el-radio>
+                        </el-radio-group>
+                    </div>
+                </el-card>
+                <el-card class="box-card" style="margin-top: 10px;">
+                    <div slot="header" class="clearfix">
+                        <span>Sql查询生成实体类</span>
+                        <el-button style="float: right; padding: 3px 0" type="text" @click="getModel">查询</el-button>
+                        <el-button style="float: right; padding: 3px 9px" type="text" @click="clear">清空</el-button>
+                    </div>
+                    <div class="text item">
+                        <el-input type="textarea" placeholder="请输入查询语句" :autosize="true" rows="4" v-model="sqlString">
+                        </el-input>
+                    </div>
+                </el-card>
+            </el-col>
+            <el-col :span="16">
+                <el-card class="box-card" body-style="height:720px;overflow-y: auto;">
+                    <div slot="header" class="clearfix">
+                        <span>生成的实体类</span>
+                        <el-button style="float: right; padding: 3px 0" type="text" @click="copy">复制</el-button>
+                    </div>
+                    <div class="text item">
+                        <el-input id="model" type="textarea" rows="18" :autosize="true" v-model="model">
+                        </el-input>
+                    </div>
+                </el-card>
+            </el-col>
+        </el-row>
+    </div>
+    <script>
+        const myAxios = axios.create({
+            baseURL: 'http://localhost:5094',
+            timeout: 1000
+        });
+        new Vue({
+            el: "#root",
+            data() {
+                return {
+                    connString: "",
+                    sqlString: "",
+                    dataBases: [],
+                    tables:[],
+                    tableSelected:"",
+                    model: "",
+                    dataBaseSelected:"",
+                }
+            },
+            methods: {
+                copy(){
+                    var textArea=document.getElementById("model");
+                    textArea.select();
+                    document.execCommand("copy");
+                    this.$message.success("复制成功");
+                },
+                refresh1(){
+                    try {
+                        this.getDataBases();
+                    } catch (error) {
+                        this.$message.error("刷新失败!");
+                    }
+                    this.$message.success("已刷新");
+                },
+                refresh2(){
+                    try {
+                        this.getTableList();
+                    } catch (error) {
+                        this.$message.error("刷新失败!");
+                    }
+                    this.$message.success("已刷新");
+                },
+                clear(){
+                    this.sqlString="";
+                },
+                change2(val){
+                    myAxios.post("/api/Main/GetEntityByTableName",Qs.stringify({"tableName":val})).then(res=>{
+                        this.model=res.data;
+                    });
+                },
+                change1(val){
+                    this.dataBaseSelected=val;
+                    this.getTableList();
+                },
+                getTableList(){
+                    myAxios.post("/api/Main/ShowTables",Qs.stringify({"database":this.dataBaseSelected})).then(res=>{
+                        this.tables=res.data;
+                    });
+                },
+                getDataBases() {
+                    myAxios.get("/api/Main/ShowDataBases").then(res => {
+                        this.dataBases = res.data;
+                    });
+                },
+                getModel() {
+                    if(this.sqlString.trim()==""){
+                        this.$message.warning("Sql查询不能为空");
+                        return;
+                    }
+                    myAxios.post("/api/Main/GetEntityBySelect", Qs.stringify({ "sql": this.sqlString })).then(res => {
+                        this.model = res.data;
+                    });
+                },
+                connection() {
+                    if (!this.connString || this.connString.trim() == "") {
+                        this.$message.warning("请输入正确的连接字符串");
+                        return;
+                    }
+                    let formData = new FormData();
+                    formData.append("connStr", this.connString);
+                    myAxios.post("/api/Main/Login", formData).then(res => {
+                        if (res.data.trim() == "连接成功") {
+                            this.$message.success("连接成功");
+                            this.getDataBases();
+                        }
+                        else {
+                            this.$message.error("连接失败!" + res.data);
+                        }
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
