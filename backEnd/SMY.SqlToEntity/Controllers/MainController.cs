@@ -136,6 +136,8 @@ public class MainController : ControllerBase
                 }
                 sb.Append(new string(' ', 4));
                 var typeNameMe = item.IsNullable == 1 ? $"{item.TypeName}?" : $"{item.TypeName}";
+                sb.AppendLine($"[Column(\"{item.ColName}\")]");
+                sb.Append(new string(' ', 4));
                 sb.AppendLine("public " + typeNameMe + " " + item.ColName + " { get; set; }");
             }
             sb.AppendLine("}");

@@ -684,11 +684,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\huabliss\\Example.WebAPI\\SMY.SqlToEntity\\SMY.SqlToEntity.csproj",
+      "projectUniqueName": "D:\\huabliss\\SqlToEntity\\backEnd\\SMY.SqlToEntity\\SMY.SqlToEntity.csproj",
       "projectName": "SMY.SqlToEntity",
-      "projectPath": "D:\\huabliss\\Example.WebAPI\\SMY.SqlToEntity\\SMY.SqlToEntity.csproj",
+      "projectPath": "D:\\huabliss\\SqlToEntity\\backEnd\\SMY.SqlToEntity\\SMY.SqlToEntity.csproj",
       "packagesPath": "C:\\Users\\PROW_009\\.nuget\\packages\\",
-      "outputPath": "D:\\huabliss\\Example.WebAPI\\SMY.SqlToEntity\\obj\\",
+      "outputPath": "D:\\huabliss\\SqlToEntity\\backEnd\\SMY.SqlToEntity\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\PROW_009\\AppData\\Roaming\\NuGet\\NuGet.Config",

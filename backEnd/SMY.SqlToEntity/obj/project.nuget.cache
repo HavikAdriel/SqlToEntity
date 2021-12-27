@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "rmgH4KDcgJezVjgFKZ2AXa162TknODwSwBG+InqkNiw/5DHv2xfpVyyrmJ4CSNQiBWAe6NX23KJxNcnZUxFF2g==",
+  "dgSpecHash": "fshlJ6NGPWJIG+ZOH1GTET4bBn+OLVO72cpDkPksF/HTB9dVXNSBCn1TBcsbgI1D2gYr9X6nN21XENcGU/ywvA==",
   "success": true,
-  "projectFilePath": "D:\\huabliss\\Example.WebAPI\\SMY.SqlToEntity\\SMY.SqlToEntity.csproj",
+  "projectFilePath": "D:\\huabliss\\SqlToEntity\\backEnd\\SMY.SqlToEntity\\SMY.SqlToEntity.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\PROW_009\\.nuget\\packages\\dapper\\2.0.123\\dapper.2.0.123.nupkg.sha512",
     "C:\\Users\\PROW_009\\.nuget\\packages\\microsoft.extensions.apidescription.server\\3.0.0\\microsoft.extensions.apidescription.server.3.0.0.nupkg.sha512",
