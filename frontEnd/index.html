@@ -30,7 +30,8 @@
                     </div>
                     <div v-if="dataBases.length>0" class="text item">
                         <el-radio-group v-model="dataBaseSelected" @change="change1">
-                            <el-radio style="display: block;" v-for="(item,index) in dataBases" :key="index" :label="item">{{item}}</el-radio>
+                            <el-radio style="display: block;" v-for="(item,index) in dataBases" :key="index"
+                                :label="item">{{item}}</el-radio>
                         </el-radio-group>
                     </div>
                 </el-card>
@@ -41,13 +42,14 @@
                     </div>
                     <div class="text item">
                         <el-radio-group v-model="tableSelected" @change="change2">
-                            <el-radio style="display: block;" v-for="(item,index) in tables" :key="index" :label="item">{{item}}</el-radio>
+                            <el-radio style="display: block;" v-for="(item,index) in tables" :key="index" :label="item">
+                                {{item}}</el-radio>
                         </el-radio-group>
                     </div>
                 </el-card>
                 <el-card class="box-card" style="margin-top: 10px;">
                     <div slot="header" class="clearfix">
-                        <span>Sql查询生成实体类</span>
+                        <span>Sql查询生成实体类(查询结果为空会报错)</span>
                         <el-button style="float: right; padding: 3px 0" type="text" @click="getModel">查询</el-button>
                         <el-button style="float: right; padding: 3px 9px" type="text" @click="clear">清空</el-button>
                     </div>
@@ -60,16 +62,52 @@
             <el-col :span="16">
                 <el-card class="box-card" body-style="height:720px;overflow-y: auto;">
                     <div slot="header" class="clearfix">
-                        <span>生成的实体类</span>
-                        <el-button style="float: right; padding: 3px 0" type="text" @click="copy">复制</el-button>
+                        <span>实体类</span>
+                        <el-button style="float: right; padding: 3px 6px" type="text" @click="copy">复制</el-button>
+                        <el-button style="float: right; padding: 3px 6px" type="text" @click="openDia">生成类文件</el-button>
+                        <el-button style="float: right; padding: 3px 6px" type="text" @click="advanceDia=true">高级配置
+                        </el-button>
                     </div>
                     <div class="text item">
-                        <el-input id="model" type="textarea" rows="18" :autosize="true" v-model="model">
+                        <el-input placeholder="头部文件" type="textarea" rows="4" :autosize="true" v-model="top">
+                        </el-input>
+                        <el-input style="margin-top:10px !important" id="model" placeholder="类文件" type="textarea"
+                            rows="18" :autosize="true" v-model="model">
                         </el-input>
                     </div>
                 </el-card>
             </el-col>
         </el-row>
+        <!--生成实体类-->
+        <el-dialog title="生成类文件" :visible.sync="dialogVisible" width="30%">
+            <el-form :model="form" ref="form" :rules="rules">
+                <el-form-item label="文件名称" prop="className">
+                    <el-input clearable v-model="form.className" placeholder="请输入文件名称"></el-input>
+                </el-form-item>
+                <el-form-item label="生成路径" prop="path">
+                    <el-input clearable v-model="form.path" placeholder="请输入生成的路径"></el-input>
+                </el-form-item>
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="dialogVisible = false">关 闭</el-button>
+                <el-button type="primary" @click="diaSure">生 成</el-button>
+            </span>
+        </el-dialog>
+        <!--高级配置-->
+        <el-dialog title="高级配置" :visible.sync="advanceDia" width="30%">
+            <el-form :model="advanceForm" ref="advanceForm">
+                <el-form-item label="属性访问器">
+                    <el-checkbox-group v-model="advanceForm.CheckList">
+                        <el-checkbox label="get"></el-checkbox>
+                        <el-checkbox label="set"></el-checkbox>
+                    </el-checkbox-group>
+                </el-form-item>
+            </el-form>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="advanceDia = false">关 闭</el-button>
+                <el-button type="primary" @click="advanceSure">确 定</el-button>
+            </span>
+        </el-dialog>
     </div>
     <script>
         const myAxios = axios.create({
@@ -80,23 +118,72 @@
             el: "#root",
             data() {
                 return {
+                    advanceDia: false,
+                    advanceForm: {
+                        CheckList: ["get","set"]
+                    },
+                    rules: {
+                        className: [{ required: true, message: "必填项", trigger: "blur" }],
+                        path: [{ required: true, message: "必填项", trigger: "blur" }]
+                    },
+                    form: {
+                        className: "",
+                        path: ""
+                    },
                     connString: "",
                     sqlString: "",
                     dataBases: [],
-                    tables:[],
-                    tableSelected:"",
+                    tables: [],
+                    top: "",
+                    tableSelected: "",
                     model: "",
-                    dataBaseSelected:"",
+                    dataBaseSelected: "",
+                    dialogVisible: false,
+                    btnText:""//上次点击的按钮 可能的值"sql"或"table"
                 }
             },
             methods: {
-                copy(){
-                    var textArea=document.getElementById("model");
+                advanceSure() {
+                    if(this.btnText==="sql")
+                    {
+                        this.getEntityBySql();
+                    }
+                    else{
+                        this.getEntityByTable();
+                    }
+                    this.advanceDia=false;
+                },
+                diaSure() {
+                    this.$refs.form.validate(validate => {
+                        if (validate) {
+                            let data = {
+                                className: this.form.className,
+                                path: this.form.path,
+                                classContent: this.model,
+                                top: this.top
+                            };
+                            myAxios.post("/api/Main/Generate", Qs.stringify(data)).then(res => {
+                                if (res.data === "生成成功") {
+                                    this.$message.success("生成成功");
+                                    this.dialogVisible = false;
+                                }
+                                else {
+                                    this.$message.error(res.data);
+                                }
+                            });
+                        }
+                    })
+                },
+                openDia() {
+                    this.dialogVisible = true;
+                },
+                copy() {
+                    var textArea = document.getElementById("model");
                     textArea.select();
                     document.execCommand("copy");
                     this.$message.success("复制成功");
                 },
-                refresh1(){
+                refresh1() {
                     try {
                         this.getDataBases();
                     } catch (error) {
@@ -104,7 +191,7 @@
                     }
                     this.$message.success("已刷新");
                 },
-                refresh2(){
+                refresh2() {
                     try {
                         this.getTableList();
                     } catch (error) {
@@ -112,21 +199,38 @@
                     }
                     this.$message.success("已刷新");
                 },
-                clear(){
-                    this.sqlString="";
+                clear() {
+                    this.sqlString = "";
                 },
-                change2(val){
-                    myAxios.post("/api/Main/GetEntityByTableName",Qs.stringify({"tableName":val})).then(res=>{
-                        this.model=res.data;
+                change2(val) {
+                    this.btnText="table";
+                    this.getEntityByTable();
+                },
+                getEntityByTable(){
+                    let data={
+                        "tableName":this.tableSelected,
+                        "CheckList":this.advanceForm.CheckList
+                    };
+                    myAxios.post("/api/Main/GetEntityByTableName", Qs.stringify(data)).then(res => {
+                        this.model = res.data;
                     });
                 },
-                change1(val){
-                    this.dataBaseSelected=val;
+                getEntityBySql(){
+                    let data={
+                        "sql":this.sqlString,
+                        "CheckList":this.advanceForm.CheckList
+                    };
+                    myAxios.post("/api/Main/GetEntityBySelect", Qs.stringify(data)).then(res => {
+                        this.model = res.data;
+                    });
+                },
+                change1(val) {
+                    this.dataBaseSelected = val;
                     this.getTableList();
                 },
-                getTableList(){
-                    myAxios.post("/api/Main/ShowTables",Qs.stringify({"database":this.dataBaseSelected})).then(res=>{
-                        this.tables=res.data;
+                getTableList() {
+                    myAxios.post("/api/Main/ShowTables", Qs.stringify({ "database": this.dataBaseSelected })).then(res => {
+                        this.tables = res.data;
                     });
                 },
                 getDataBases() {
@@ -135,13 +239,12 @@
                     });
                 },
                 getModel() {
-                    if(this.sqlString.trim()==""){
+                    if (this.sqlString.trim() == "") {
                         this.$message.warning("Sql查询不能为空");
                         return;
                     }
-                    myAxios.post("/api/Main/GetEntityBySelect", Qs.stringify({ "sql": this.sqlString })).then(res => {
-                        this.model = res.data;
-                    });
+                    this.btnText="sql";
+                    this.getEntityBySql();
                 },
                 connection() {
                     if (!this.connString || this.connString.trim() == "") {

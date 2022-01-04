@@ -4,8 +4,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Dapper;
 using Microsoft.AspNetCore.Mvc;
+using SMY.SqlToEntity.Common;
 using SMY.SqlToEntity.Models;
-using Dapper;
 
 namespace SMY.SqlToEntity.Controllers;
 
@@ -38,7 +38,7 @@ public class MainController : ControllerBase
         return Ok("连接成功");
     }
     [HttpPost("GetEntityBySelect")]
-    public string GetEntityBySelect([FromForm]string sql)
+    public string GetEntityBySelect([FromForm]string sql,[FromForm]AdvanceConfig config)
     {
         if (_conn==null)
         {
@@ -51,20 +51,48 @@ public class MainController : ControllerBase
             if (reader!=null)
             {
                 reader.Read();
+                sb.AppendLine("namespace 命名空间");
+                sb.AppendLine("{");
+                sb.Append(new string(' ', 4));
                 sb.AppendLine("/// <summary>");
+                sb.Append(new string(' ', 4));
                 sb.AppendLine("/// 类名注释");
+                sb.Append(new string(' ', 4));
                 sb.AppendLine("/// </summary>");
+                sb.Append(new string(' ', 4));
                 sb.AppendLine("public class 你的类名");
+                sb.Append(new string(' ', 4));
                 sb.AppendLine("{");
                 for (int i = 0; i < reader.FieldCount; i++)
                 {
                     var colName=reader.GetName(i);
                     var type = reader.GetDataTypeName(i);
                     var isNullable = reader.IsDBNull(i);
-                    sb.Append(new string(' ', 4));
+                    sb.Append(new string(' ', 8));
                     var typeNameMe = isNullable? $"{type}?" : $"{type}";
-                    sb.AppendLine("public " + typeNameMe + " " +colName + " { get; set; }");
+                    string attrVisible = ";";
+                    if (config.CheckList is {Count:>0})
+                    {
+                        if (config.CheckList.Count==2)
+                        {
+                            attrVisible = " { get;set; } ";
+                        }
+                        else
+                        {
+                            if (config.CheckList.Contains("get"))
+                            {
+                                attrVisible = " { get; } ";
+                            }   
+                            if (config.CheckList.Contains("set"))
+                            {
+                                attrVisible = " { set; } ";
+                            }      
+                        }
+                    }
+                    sb.AppendLine("public " + typeNameMe + " " + colName+attrVisible);
                 }
+                sb.Append(new string(' ', 4));
+                sb.AppendLine("}");
                 sb.AppendLine("}");
             }
         }
@@ -93,7 +121,7 @@ public class MainController : ControllerBase
     /// </summary>
     /// <returns></returns>
     [HttpPost("GetEntityByTableName")]
-    public string GetEntityByTableName([FromForm]string tableName)
+    public string GetEntityByTableName([FromForm]string tableName,[FromForm]AdvanceConfig config)
     {
         if (_conn==null)
         {
@@ -118,38 +146,66 @@ public class MainController : ControllerBase
         if (list.Count>0)
         {
             tableName = tableName.Substring(0, 1).ToUpper() + tableName.Substring(1);
+            sb.AppendLine("namespace 命名空间");
+            sb.AppendLine("{");
+            sb.Append(new string(' ', 4));
             sb.AppendLine("/// <summary>");
+            sb.Append(new string(' ', 4));
             sb.AppendLine("/// "+tableName);
+            sb.Append(new string(' ', 4));
             sb.AppendLine("/// </summary>");
+            sb.Append(new string(' ', 4));
             sb.AppendLine("public class " + tableName);
+            sb.Append(new string(' ', 4));
             sb.AppendLine("{");
             foreach (var item in list)
             {
                 if (!string.IsNullOrWhiteSpace(item.Description))
                 {
-                    sb.Append(new string(' ', 4));
+                    sb.Append(new string(' ', 8));
                     sb.AppendLine("/// <summary>");
-                    sb.Append(new string(' ', 4));
+                    sb.Append(new string(' ', 8));
                     sb.AppendLine("///"+item.Description);
-                    sb.Append(new string(' ', 4));
+                    sb.Append(new string(' ', 8));
                     sb.AppendLine("/// </summary>");
                 }
-                sb.Append(new string(' ', 4));
                 var typeNameMe = item.IsNullable == 1 ? $"{item.TypeName}?" : $"{item.TypeName}";
+                sb.Append(new string(' ', 8));
                 sb.AppendLine($"[Column(\"{item.ColName}\")]");
-                sb.Append(new string(' ', 4));
-                sb.AppendLine("public " + typeNameMe + " " + item.ColName + " { get; set; }");
+                sb.Append(new string(' ', 8));
+                string attrVisible =";";
+                if (config.CheckList is {Count:>0})
+                {
+                    if (config.CheckList.Count==2)
+                    {
+                        attrVisible = " { get;set; } ";
+                    }
+                    else
+                    {
+                        if (config.CheckList.Contains("get"))
+                        {
+                            attrVisible = " { get; } ";
+                        }   
+                        if (config.CheckList.Contains("set"))
+                        {
+                            attrVisible = " { set; } ";
+                        }      
+                    }
+                }
+                sb.AppendLine("public " + typeNameMe + " " + item.ColName+attrVisible);
             }
+            sb.Append(new string(' ', 4));
+            sb.AppendLine("}");
             sb.AppendLine("}");
         }
         return ChangeWords(sb.ToString());
     }
     private string ChangeWords(string content)
     {
-        string result = Regex.Replace(content, "nvarchar\\?", "string");
-        result = Regex.Replace(result, "varchar\\?", "string");
-        result = Regex.Replace(result, "nchar\\?", "string");
-        result = Regex.Replace(result, "char\\?", "string");
+        string result = Regex.Replace(content, "nvarchar\\?", "string?");
+        result = Regex.Replace(result, "varchar\\?", "string?");
+        result = Regex.Replace(result, "nchar\\?", "string?");
+        result = Regex.Replace(result, "char\\?", "string?");
         result = Regex.Replace(content, "nvarchar", "string");
         result = Regex.Replace(result, "varchar", "string");
         result = Regex.Replace(result, "nchar", "string");
@@ -160,7 +216,7 @@ public class MainController : ControllerBase
         result = Regex.Replace(result, "bigint", "int");
         result = Regex.Replace(result, "datetime", "DateTime");
         result = Regex.Replace(result, "text", "string");
-        result = Regex.Replace(result, "string\\?", "string");
+        result = Regex.Replace(result, "bit\\?", "bool?");
         return result;
     }
     [HttpPost("ShowTables")]
@@ -174,6 +230,36 @@ public class MainController : ControllerBase
         {
             var sql = $"use {database};select name from sysobjects where xtype='U' order by name asc";
             return _conn.Query<string>(sql);
+        }
+    }
+    [HttpPost("Generate")]
+    public IActionResult Generate([FromForm]string className,[FromForm]string path,[FromForm] string top,[FromForm]string classContent)
+    {
+        try
+        {
+            
+            if (!Directory.Exists(path))
+            {
+                return Content("路径不存在");
+            }
+            string filePath = Path.Combine(path.Trim(), className + ".cs");
+            if (System.IO.File.Exists(filePath))
+            {
+                return Content("文件已存在"); 
+            }
+            using (StreamWriter sw=new StreamWriter(filePath,false,Encoding.Default))
+            {
+                sw.Write(top);
+                sw.Write("\r\n\r\n");
+                sw.Write(classContent);
+                sw.Flush();
+                sw.Close();
+            }
+            return Ok("生成成功");
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
         }
     }
 }
